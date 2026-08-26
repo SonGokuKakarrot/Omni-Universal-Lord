@@ -202,8 +202,8 @@ async function refreshHookStatus() {
   try {
     const status = await sendMessage({ type: 'MICMAX_STATUS_REQUEST' });
     const ageMs = status?.lastHeartbeat ? Date.now() - status.lastHeartbeat : Infinity;
-    if (status?.ok && ageMs < 12000) {
-      el.textContent = 'Hook status: ACTIVE on page';
+    if (status?.ok && ageMs < 30000) {
+      el.textContent = status.hookReady ? 'Hook status: ACTIVE on page' : 'Hook status: loader active — reload if mic boost is missing';
       el.className = 'status ok';
     } else {
       el.textContent = 'Hook status: waiting — reload the page';

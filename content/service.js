@@ -1,4 +1,7 @@
 (() => {
+  if (window.__micMaxContentServiceReady) return;
+  window.__micMaxContentServiceReady = true;
+
   const EXT = globalThis.browser ?? globalThis.chrome;
   if (!EXT?.runtime || !EXT?.storage?.local) return;
 
@@ -79,8 +82,7 @@
   }
 
   function heartbeat() {
-    if (!hookReady) return;
-    sendMessage({ type: 'MICMAX_HEARTBEAT' }).catch(() => {});
+    sendMessage({ type: 'MICMAX_HEARTBEAT', hookReady }).catch(() => {});
   }
 
   window.addEventListener('message', (event) => {
@@ -97,6 +99,6 @@
     }
   });
 
-  setInterval(heartbeat, 15000);
+  setInterval(heartbeat, 5000);
   sync();
 })();
