@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Omni WhatsApp Mic Max (All Sites) V4 Pro",
+  "short_name": "Omni Mic Max V4 (All Sites)",
+  "version": "4.3.0",
+  "description": "Chromium-compatible microphone enhancer adapted to run on all websites (content-injected). Safe WebRTC hooks for desktop Chromium browsers.",
+  "permissions": ["storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/loader.js", "content/service.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["core/injector.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "action": {
+    "default_title": "Omni Mic Max V4 (All Sites)",
+    "default_popup": "popup/popup.html"
+  },
+  "minimum_chrome_version": "109"
+}
