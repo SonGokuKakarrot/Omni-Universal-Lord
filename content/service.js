@@ -79,8 +79,7 @@
   }
 
   function heartbeat() {
-    if (!hookReady) return;
-    sendMessage({ type: 'MICMAX_HEARTBEAT' }).catch(() => {});
+    sendMessage({ type: 'MICMAX_HEARTBEAT', hookReady }).catch(() => {});
   }
 
   window.addEventListener('message', (event) => {
@@ -97,6 +96,6 @@
     }
   });
 
-  setInterval(heartbeat, 15000);
+  setInterval(heartbeat, 5000);
   sync();
 })();
