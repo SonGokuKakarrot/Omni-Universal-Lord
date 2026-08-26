@@ -6,11 +6,35 @@ function reply(sendResponse, payload) {
   try { sendResponse(payload); } catch (_) {}
 }
 
+function isInjectableUrl(url = '') {
+  return /^(https?|file):/i.test(url);
+}
+
+async function injectIntoOpenTabs() {
+  if (!EXT?.tabs?.query || !EXT?.scripting?.executeScript) return;
+  let tabs = [];
+  try {
+    tabs = await EXT.tabs.query({});
+  } catch (_) {
+    return;
+  }
+
+  await Promise.allSettled(tabs
+    .filter((tab) => tab?.id != null && isInjectableUrl(tab.url))
+    .map((tab) => EXT.scripting.executeScript({
+      target: { tabId: tab.id, allFrames: true },
+      files: ['content/loader.js', 'content/service.js']
+    })));
+}
+
 if (EXT?.runtime?.onInstalled) {
   EXT.runtime.onInstalled.addListener(() => {
     console.log('[Omni Mic Max V4 Pro] installed');
+    injectIntoOpenTabs();
   });
 }
+
+injectIntoOpenTabs();
 
 if (EXT?.runtime?.onMessage) {
   EXT.runtime.onMessage.addListener((message, sender, sendResponse) => {

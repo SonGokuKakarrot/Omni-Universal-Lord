@@ -1,4 +1,7 @@
 (() => {
+  if (window.__micMaxLoaderScriptReady) return;
+  window.__micMaxLoaderScriptReady = true;
+
   const EXT = globalThis.browser ?? globalThis.chrome;
   if (!EXT?.runtime?.getURL) return;
 

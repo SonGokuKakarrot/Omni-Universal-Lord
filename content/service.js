@@ -1,4 +1,7 @@
 (() => {
+  if (window.__micMaxContentServiceReady) return;
+  window.__micMaxContentServiceReady = true;
+
   const EXT = globalThis.browser ?? globalThis.chrome;
   if (!EXT?.runtime || !EXT?.storage?.local) return;
 
