@@ -4,9 +4,11 @@
 
   const injectorUrl = EXT.runtime.getURL('core/injector.js');
 
-  function sendHeartbeat() {
+  const HEARTBEAT_INTERVAL_MS = 5000;
+
+  function sendHeartbeat(hookReady = false) {
     try {
-      const result = EXT.runtime.sendMessage({ type: 'MICMAX_HEARTBEAT' });
+      const result = EXT.runtime.sendMessage({ type: 'MICMAX_HEARTBEAT', hookReady });
       if (result?.catch) result.catch(() => {});
     } catch (_) {}
   }
@@ -18,7 +20,7 @@
     const alreadyInjected = document.documentElement?.dataset?.micMaxLoaderInjected === '1';
     if (alreadyInjected && window.__micMaxInjectorReady) {
       window.__micMaxLoaderBusy = false;
-      sendHeartbeat();
+      sendHeartbeat(true);
       return;
     }
 
@@ -29,7 +31,7 @@
     script.onload = () => {
       document.documentElement.dataset.micMaxLoaderInjected = '1';
       window.__micMaxLoaderBusy = false;
-      sendHeartbeat();
+      sendHeartbeat(false);
       script.remove();
     };
     script.onerror = () => {
@@ -40,6 +42,7 @@
   }
 
   inject();
+  setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
 
   window.addEventListener('pageshow', () => {
     if (!window.__micMaxInjectorReady) inject();
