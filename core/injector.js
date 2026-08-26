@@ -296,7 +296,7 @@
   function wantsAudio(constraints) {
     if (constraints === true) return true;
     if (!constraints || typeof constraints !== 'object') return false;
-    return 'audio' in constraints ? Boolean(constraints.audio) : true;
+    return 'audio' in constraints ? Boolean(constraints.audio) : false;
   }
 
   function processedStreamFor(originalStream, rawTrack, processedTrack) {
@@ -524,6 +524,38 @@
   }
 
 
+
+  function patchExistingSender(sender, pc = null) {
+    const track = sender?.track;
+    if (!track || track.kind !== 'audio') return;
+    rememberSender(sender, track, pc);
+    if (!cfg().enabled) return;
+    replaceSenderTrack(sender, track).catch(() => {
+      tuneAudioSender(sender);
+      watchSenderTrack(sender, track);
+    });
+  }
+
+  function patchPeerConnectionInstance(pc) {
+    rememberPeerConnection(pc);
+    if (typeof pc?.getSenders !== 'function') return pc;
+    try {
+      for (const sender of pc.getSenders()) patchExistingSender(sender, pc);
+    } catch (_) {}
+    return pc;
+  }
+
+  function patchedStreamArgs(streams) {
+    if (!cfg().enabled) return streams;
+    return streams.map((stream) => {
+      if (!stream || typeof stream.getTracks !== 'function' || typeof stream.getAudioTracks !== 'function') return stream;
+      const replacements = new Map();
+      for (const track of stream.getAudioTracks()) replacements.set(track, processAudioTrack(track, true));
+      if (!replacements.size) return stream;
+      return new MediaStream(stream.getTracks().map((track) => replacements.get(track) || track));
+    });
+  }
+
   function patchTrackApplyConstraints() {
     const Track = window.MediaStreamTrack;
     if (!Track?.prototype || Track.prototype.__micMaxConstraintsPatched) return;
@@ -562,6 +594,30 @@
         };
       }
 
+      const originalAddStream = PC.prototype.addStream;
+      if (typeof originalAddStream === 'function') {
+        PC.prototype.addStream = function addStream(stream) {
+          rememberPeerConnection(this);
+          return originalAddStream.call(this, patchedStreamArgs([stream])[0]);
+        };
+      }
+
+      const originalSetLocalDescription = PC.prototype.setLocalDescription;
+      if (typeof originalSetLocalDescription === 'function') {
+        PC.prototype.setLocalDescription = function setLocalDescription(...args) {
+          patchPeerConnectionInstance(this);
+          return originalSetLocalDescription.apply(this, args);
+        };
+      }
+
+      const originalCreateOffer = PC.prototype.createOffer;
+      if (typeof originalCreateOffer === 'function') {
+        PC.prototype.createOffer = function createOffer(...args) {
+          patchPeerConnectionInstance(this);
+          return originalCreateOffer.apply(this, args);
+        };
+      }
+
       const originalAddTransceiver = PC.prototype.addTransceiver;
       if (typeof originalAddTransceiver === 'function') {
         PC.prototype.addTransceiver = function addTransceiver(trackOrKind, init = undefined) {
@@ -581,6 +637,18 @@
         };
       }
       PC.prototype.__micMaxPcPatched = true;
+
+      if (!PC.__micMaxConstructorPatched) {
+        const WrappedPC = function RTCPeerConnection(...args) {
+          return patchPeerConnectionInstance(new PC(...args));
+        };
+        try { Object.setPrototypeOf(WrappedPC, PC); } catch (_) {}
+        WrappedPC.prototype = PC.prototype;
+        try { Object.defineProperty(WrappedPC, 'name', { value: PC.name }); } catch (_) {}
+        WrappedPC.__micMaxConstructorPatched = true;
+        if (window.RTCPeerConnection === PC) window.RTCPeerConnection = WrappedPC;
+        if (window.webkitRTCPeerConnection === PC) window.webkitRTCPeerConnection = WrappedPC;
+      }
     }
 
     const Sender = window.RTCRtpSender;

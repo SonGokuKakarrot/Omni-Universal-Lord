@@ -1,6 +1,6 @@
 // Omni Mic Max V4 Pro - background module (adapted for all sites)
 const EXT = globalThis.browser ?? globalThis.chrome;
-const state = { installedAt: Date.now(), lastHeartbeat: 0, hookActiveTabs: new Set() };
+const state = { installedAt: Date.now(), lastHeartbeat: 0, hookActiveTabs: new Map() };
 
 function reply(sendResponse, payload) {
   try { sendResponse(payload); } catch (_) {}
@@ -18,7 +18,13 @@ if (EXT?.runtime?.onMessage) {
 
     if (message.type === 'MICMAX_HEARTBEAT') {
       state.lastHeartbeat = Date.now();
-      if (sender?.tab?.id != null) state.hookActiveTabs.add(sender.tab.id);
+      if (sender?.tab?.id != null) {
+        const tabState = state.hookActiveTabs.get(sender.tab.id) || {};
+        state.hookActiveTabs.set(sender.tab.id, {
+          lastHeartbeat: state.lastHeartbeat,
+          hookReadyAt: message.hookReady === true ? state.lastHeartbeat : tabState.hookReadyAt || 0
+        });
+      }
       reply(sendResponse, { ok: true });
       return false;
     }
@@ -28,7 +34,8 @@ if (EXT?.runtime?.onMessage) {
         ok: true,
         installedAt: state.installedAt,
         lastHeartbeat: state.lastHeartbeat,
-        activeTabs: [...state.hookActiveTabs]
+        hookReady: [...state.hookActiveTabs.values()].some((tab) => tab.hookReadyAt && Date.now() - tab.hookReadyAt < 30000),
+        activeTabs: [...state.hookActiveTabs.keys()]
       });
       return false;
     }
